@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0F1117">
+<title>IUC Field Tracker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛽</text></svg>">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root {
+    --bg:#0F1117; --surface:#1A1D27; --surfaceLight:#242836;
+    --border:#2E3345; --text:#E8ECF4; --muted:#8B93A7;
+    --accent:#F59E0B; --accentDark:#B45309; --success:#10B981;
+    --error:#EF4444; --blue:#3B82F6; --purple:#8B5CF6;
+  }
+  body {
+    font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh;
+    overflow-x:hidden;
+  }
+  #app { max-width:480px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+  .header {
+    padding:14px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--surface); flex-shrink:0;
+  }
+  .card {
+    background:var(--surface); border-radius:16px;
+    border:1px solid var(--border); padding:16px; margin-bottom:12px;
+  }
+  .btn-p {
+    background:linear-gradient(135deg,var(--accent),var(--accentDark));
+    color:#000; border:none; border-radius:14px; padding:16px 32px;
+    font-size:17px; font-weight:700; cursor:pointer; width:100%;
+    box-shadow:0 4px 20px rgba(245,158,11,0.25);
+  }
+  .btn-p:disabled { opacity:0.4; cursor:not-allowed; }
+  .btn-s {
+    background:var(--surfaceLight); color:var(--text);
+    border:1px solid var(--border); border-radius:14px;
+    padding:14px 24px; font-size:15px; font-weight:600;
+    cursor:pointer; width:100%;
+  }
+  .btn-back {
+    background:none; border:none; color:var(--muted);
+    font-size:14px; cursor:pointer; padding:8px 0; font-weight:600;
+  }
+  .input {
+    width:100%; padding:12px 14px; background:var(--bg);
+    border:2px solid var(--border); border-radius:12px;
+    color:var(--text); font-size:15px; outline:none; font-family:inherit;
+  }
+  .input:focus { border-color:var(--accent); }
+  .label {
+    display:block; font-size:11px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px;
+  }
+  .pill {
+    font-size:11px; font-weight:700; padding:4px 10px;
+    border-radius:20px; display:inline-block;
+  }
+  .screen { flex:1; display:flex; flex-direction:column; }
+  .center { justify-content:center; align-items:center; text-align:center; padding:32px 24px; }
+  .cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .cat-btn {
+    background:var(--surface); border:2px solid var(--border);
+    border-radius:16px; padding:20px 16px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center;
+    gap:8px; position:relative; overflow:hidden; transition:transform 0.1s;
+  }
+  .cat-btn:active { transform:scale(0.96); }
+  .cat-bar { position:absolute; top:0; left:0; right:0; height:3px; opacity:0.7; }
+  .eq-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .eq-btn {
+    background:var(--bg); border:2px solid var(--border);
+    border-radius:10px; padding:10px; cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+    color:var(--text); font-size:13px;
+  }
+  .eq-btn.active { background:rgba(139,92,246,0.15); border-color:var(--purple); font-weight:700; }
+  .field-row {
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .field-val {
+    font-size:20px; font-weight:800; margin-top:6px;
+  }
+  .edit-btn {
+    background:none; border:none; color:var(--blue);
+    font-size:12px; cursor:pointer; font-weight:600;
+  }
+  .badge {
+    min-width:64px; height:64px; border-radius:14px;
+    background:rgba(245,158,11,0.08); border:2px solid rgba(245,158,11,0.25);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .badge-id { font-size:22px; font-weight:900; color:var(--accent); font-family:monospace; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .spinner {
+    width:64px; height:64px; border:3px solid var(--border);
+    border-top-color:var(--accent); border-radius:50%;
+    animation:spin 0.8s linear infinite; margin:0 auto 24px;
+  }
+  .success-ring {
+    width:96px; height:96px; border-radius:50%;
+    background:rgba(16,185,129,0.12); border:3px solid var(--success);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:24px; font-size:48px;
+  }
+  .yr-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .img-thumb {
+    width:100%; height:150px; object-fit:cover; display:block;
+    border-radius:12px; border:1px solid var(--border); margin-bottom:12px;
+  }
+  .pills { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .footer-bar {
+    padding:16px 20px 32px; border-top:1px solid var(--border);
+    background:var(--surface);
+  }
+  .setup-banner {
+    border:1px solid rgba(245,158,11,0.2); border-radius:16px;
+    padding:16px; margin-bottom:16px; cursor:pointer;
+    background:rgba(245,158,11,0.06);
+  }
+  .mono { font-family:'Courier New',monospace; letter-spacing:0.5px; }
+  .fleet-url {
+    font-family:monospace; font-size:11px; color:var(--text);
+    background:var(--bg); padding:10px 12px; border-radius:8px;
+    margin-bottom:6px; word-break:break-all; display:flex;
+    align-items:center; gap:8px;
+  }
+  .del-confirm {
+    margin-top:12px; padding:12px; background:rgba(239,68,68,0.06);
+    border-radius:10px; border:1px solid rgba(239,68,68,0.2);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .del-confirm button { border:none; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ============================================================
+// IUC FIELD TRACKER — Standalone (no React, no build step)
+// Uses localStorage for device persistence
+// ============================================================
+
+const CATEGORIES = [
+  {id:"gas",label:"Gas",icon:"⛽",color:"#F59E0B"},
+  {id:"materials",label:"Materials",icon:"🧱",color:"#8B5CF6"},
+  {id:"maintenance",label:"Maintenance",icon:"🔧",color:"#3B82F6"},
+  {id:"consumables",label:"Consumables",icon:"📦",color:"#10B981"},
+  {id:"food",label:"Food",icon:"🍔",color:"#EF4444"},
+  {id:"repair",label:"Repair",icon:"🛠️",color:"#F97316"},
+  {id:"fees",label:"Fees",icon:"📋",color:"#6366F1"},
+  {id:"other",label:"Other",icon:"📌",color:"#64748B"},
+];
+
+const EQ_TYPES = [
+  {id:"truck",label:"Truck",prefix:"T",icon:"🚛"},
+  {id:"drill",label:"Drill",prefix:"D",icon:"🔩"},
+  {id:"trailer",label:"Trailer",prefix:"TR",icon:"🚜"},
+  {id:"excavator",label:"Excavator",prefix:"EX",icon:"⚙️"},
+  {id:"generator",label:"Generator",prefix:"G",icon:"🔋"},
+  {id:"vehicle",label:"Vehicle (Other)",prefix:"V",icon:"🚗"},
+  {id:"equipment",label:"Equipment (Other)",prefix:"EQ",icon:"🛠️"},
+];
+
+// --- State ---
+let state = {
+  screen: "loading",
+  deviceToken: null,
+  registeredName: "",
+  unitId: null,
+  unitInfo: null,
+  vehicles: [],
+  category: null,
+  photoDataUrl: null,
+  ocrData: null,
+  ocrLoading: false,
+  ocrError: null,
+  submitting: false,
+  location: null,
+  locationLoading: false,
+  editField: null,
+  successCount: 0,
+  showAdmin: false,
+  scriptUrl: "",
+  showSetup: false,
+  timestamp: null,
+  // admin form
+  adminForm: {type:"truck",vin:"",year:"",make:"",model:"",desc:""},
+  showAddUnit: false,
+  delId: null,
+  // register form
+  regName: "",
+};
+
+function setState(updates) {
+  Object.assign(state, updates);
+  render();
+}
+
+// --- Utilities ---
+function genToken() {
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return Array.from(a, b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+function getUnit() {
+  try { return new URLSearchParams(location.search).get("unit") || new URLSearchParams(location.search).get("truck") || null; }
+  catch { return null; }
+}
+
+function fmt$(v) { const n=parseFloat(v); return isNaN(n)?"":"$"+n.toFixed(2); }
+
+function genShortId(typeId, vehicles) {
+  const et = EQ_TYPES.find(t=>t.id===typeId);
+  if(!et) return "X1";
+  const used = vehicles.filter(v=>v.type===typeId).map(v=>{
+    const m=v.shortId.match(/(\d+)$/); return m?parseInt(m[1]):0;
+  });
+  return et.prefix + (used.length>0 ? Math.max(...used)+1 : 1);
+}
+
+function compressImage(file) {
+  return new Promise(resolve => {
+    const r = new FileReader();
+    r.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        const ratio = Math.min(1200/img.width, 1200/img.height, 1);
+        c.width = img.width*ratio; c.height = img.height*ratio;
+        c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+        resolve(c.toDataURL("image/jpeg",0.8));
+      };
+      img.src = e.target.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+function esc(s) { const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+// --- Storage helpers (localStorage) ---
+function lsGet(k) { try { return localStorage.getItem("iuc_"+k); } catch { return null; } }
+function lsSet(k,v) { try { localStorage.setItem("iuc_"+k, v); } catch {} }
+function lsGetJSON(k) { const v=lsGet(k); try{return v?JSON.parse(v):null;}catch{return null;} }
+function lsSetJSON(k,v) { lsSet(k, JSON.stringify(v)); }
+
+// --- Geolocation ---
+function grabLocation() {
+  setState({locationLoading:true});
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      p=>setState({location:{lat:p.coords.latitude.toFixed(6),lng:p.coords.longitude.toFixed(6)},locationLoading:false}),
+      ()=>setState({location:{lat:"N/A",lng:"N/A"},locationLoading:false}),
+      {timeout:10000}
+    );
+  } else setState({location:{lat:"N/A",lng:"N/A"},locationLoading:false});
+}
+
+// --- Init ---
+function init() {
+  state.unitId = getUnit();
+  state.vehicles = lsGetJSON("vehicles") || [];
+  state.scriptUrl = lsGet("script_url") || "";
+  
+  if(state.unitId && state.vehicles.length) {
+    state.unitInfo = state.vehicles.find(v=>v.shortId===state.unitId) || null;
+  }
+  
+  const tok = lsGet("device_token");
+  const nm = lsGet("registered_name");
+  if(tok && nm) {
+    state.deviceToken = tok;
+    state.registeredName = nm;
+    state.screen = "category";
+  } else {
+    state.deviceToken = genToken();
+    state.screen = "register";
+  }
+  render();
+}
+
+// --- Photo handler ---
+async function handlePhoto(file) {
+  setState({ocrLoading:true, ocrError:null});
+  try {
+    const compressed = await compressImage(file);
+    state.photoDataUrl = compressed;
+    
+    if(state.scriptUrl) {
+      try {
+        const base64 = compressed.split(",")[1];
+        const resp = await fetch(state.scriptUrl, {
+          method:"POST",
+          body: JSON.stringify({action:"ocr", image:base64}),
+        });
+        const result = await resp.json();
+        if(result.success && result.data) {
+          setState({ocrData:result.data, ocrLoading:false, screen:"review"});
+          return;
+        }
+      } catch(err) { console.warn("OCR failed:", err); }
+    }
+    
+    setState({
+      ocrError: state.scriptUrl
+        ? "OCR couldn't read this one. Enter details below."
+        : "No Apps Script connected — enter details manually.",
+      ocrData:{vendor:"",total:0,gallons:null,price_per_gallon:null,date_on_receipt:null,notes:""},
+      ocrLoading:false, screen:"review"
+    });
+  } catch(err) {
+    setState({
+      ocrError:"Photo error. Enter details manually.",
+      ocrData:{vendor:"",total:0,gallons:null,price_per_gallon:null,date_on_receipt:null,notes:""},
+      ocrLoading:false, screen:"review"
+    });
+  }
+}
+
+// --- Submit ---
+async function handleSubmit() {
+  setState({submitting:true});
+  const record = {
+    action:"log",
+    timestamp: state.timestamp,
+    user: state.registeredName,
+    device_token: state.deviceToken,
+    unit_id: state.unitId || "UNASSIGNED",
+    unit_vin: state.unitInfo?.vin || "",
+    unit_desc: state.unitInfo?.description || "",
+    category: state.category?.id || "gas",
+    vendor: state.ocrData?.vendor || "",
+    total: state.ocrData?.total || 0,
+    gallons: state.ocrData?.gallons || null,
+    price_per_gallon: state.ocrData?.price_per_gallon || null,
+    location_lat: state.location?.lat || "N/A",
+    location_lng: state.location?.lng || "N/A",
+    odometer: state.ocrData?.odometer || "",
+    notes: state.ocrData?.notes || "",
+    receipt_date: state.ocrData?.date_on_receipt || "",
+  };
+  
+  if(state.scriptUrl) {
+    try {
+      await fetch(state.scriptUrl, {method:"POST", body:JSON.stringify(record)});
+    } catch(err) { console.warn("Submit failed:", err); }
+  }
+  
+  console.log("Receipt:", record);
+  setState({submitting:false, successCount:state.successCount+1, screen:"success"});
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+
+function render() {
+  const app = document.getElementById("app");
+  
+  if(state.showAdmin) { renderAdmin(app); return; }
+  
+  switch(state.screen) {
+    case "loading": renderLoading(app); break;
+    case "register": renderRegister(app); break;
+    case "category": renderCategory(app); break;
+    case "capture": renderCapture(app); break;
+    case "review": renderReview(app); break;
+    case "success": renderSuccess(app); break;
+    default: renderLoading(app);
+  }
+}
+
+// --- Loading ---
+function renderLoading(el) {
+  el.innerHTML = `
+    <div class="screen center">
+      <div style="font-size:48px;margin-bottom:16px">⛽</div>
+      <div style="font-size:20px;font-weight:700;color:var(--accent)">IUC FIELD TRACKER</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:8px">Loading...</div>
+    </div>`;
+}
+
+// --- Register ---
+function renderRegister(el) {
+  const unitHtml = state.unitInfo ? `
+    <div class="card" style="display:flex;align-items:center;gap:12px;background:var(--surfaceLight)">
+      <span style="font-size:24px">${EQ_TYPES.find(t=>t.id===state.unitInfo.type)?.icon||"🚛"}</span>
+      <div>
+        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase">Unit</div>
+        <div style="font-size:16px;font-weight:700;color:var(--accent)">${esc(state.unitInfo.shortId)} — ${esc(state.unitInfo.description)}</div>
+      </div>
+    </div>` : "";
+    
+  el.innerHTML = `
+    <div class="screen center" style="justify-content:center;padding:32px 24px">
+      <div style="margin-bottom:40px">
+        <div style="font-size:56px;margin-bottom:12px">⛽</div>
+        <div style="font-size:26px;font-weight:800;color:var(--accent)">IUC FIELD TRACKER</div>
+        <div style="font-size:14px;color:var(--muted);margin-top:8px">One-time device setup</div>
+      </div>
+      <div class="card" style="text-align:left">
+        <label class="label">Your Name</label>
+        <input id="regInput" class="input" style="font-size:17px;padding:14px 16px"
+          placeholder="e.g. Dakota Thomas" value="${esc(state.regName)}" autofocus>
+        <div style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5">
+          Locked to this device permanently. You won't need to enter it again.
+        </div>
+      </div>
+      ${unitHtml}
+      <div style="margin-top:20px;width:100%">
+        <button id="regBtn" class="btn-p" ${state.regName.trim()?"":"disabled"}>Lock This Device</button>
+      </div>
+      <div style="margin-top:20px;font-size:11px;color:var(--muted)">
+        Device: ${state.deviceToken?.slice(0,12)}...
+      </div>
+    </div>`;
+    
+  document.getElementById("regInput").addEventListener("input", e => {
+    state.regName = e.target.value;
+    document.getElementById("regBtn").disabled = !e.target.value.trim();
+  });
+  document.getElementById("regBtn").addEventListener("click", () => {
+    if(!state.regName.trim()) return;
+    lsSet("device_token", state.deviceToken);
+    lsSet("registered_name", state.regName.trim());
+    setState({registeredName:state.regName.trim(), screen:"category"});
+  });
+}
+
+// --- Category ---
+function renderCategory(el) {
+  const displayUnit = state.unitInfo
+    ? `${state.unitInfo.shortId} — ${state.unitInfo.description}`
+    : state.unitId || "No unit scanned";
+    
+  const setupHtml = !state.scriptUrl ? `
+    <div class="setup-banner" id="setupBanner">
+      <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:4px">
+        ⚠️ Setup Required — Tap to connect Google Sheet
+      </div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5">
+        Paste your Google Apps Script URL to enable OCR and data logging.
+      </div>
+      <div id="setupForm" style="display:${state.showSetup?"block":"none"};margin-top:12px">
+        <input id="scriptInput" class="input mono" style="font-size:12px"
+          placeholder="https://script.google.com/macros/s/..." value="${esc(state.scriptUrl)}">
+        <button id="saveUrlBtn" class="btn-p" style="margin-top:10px;padding:12px;font-size:14px">Save URL</button>
+      </div>
+    </div>` : "";
+    
+  const catsHtml = CATEGORIES.map(c => `
+    <button class="cat-btn" data-cat="${c.id}" 
+      style="border-color:var(--border)" 
+      onmousedown="this.style.borderColor='${c.color}'"
+      onmouseup="this.style.borderColor='var(--border)'"
+      ontouchstart="this.style.transform='scale(0.96)';this.style.borderColor='${c.color}'"
+      ontouchend="this.style.transform='scale(1)';this.style.borderColor='var(--border)'">
+      <div class="cat-bar" style="background:${c.color}"></div>
+      <span style="font-size:32px">${c.icon}</span>
+      <span style="font-size:14px;font-weight:700;color:var(--text)">${c.label}</span>
+    </button>`).join("");
+    
+  const countHtml = state.successCount > 0 ? `
+    <div style="text-align:center;margin-top:24px;padding:12px;
+      background:rgba(16,185,129,0.08);border-radius:12px;
+      border:1px solid rgba(16,185,129,0.2)">
+      <span style="color:var(--success);font-size:13px;font-weight:600">
+        ✓ ${state.successCount} receipt${state.successCount!==1?"s":""} logged this session
+      </span>
+    </div>` : "";
+
+  el.innerHTML = `
+    <div class="header">
+      <div>
+        <div style="font-size:17px;font-weight:800;color:var(--accent)">IUC TRACKER</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(state.registeredName)} · ${esc(displayUnit)}</div>
+      </div>
+      <button id="adminBtn" style="background:var(--surfaceLight);border:1px solid var(--border);
+        border-radius:8px;padding:6px 12px;cursor:pointer;font-size:11px;font-weight:700;color:var(--purple)">
+        Admin
+      </button>
+    </div>
+    <div class="screen" style="padding:20px;overflow-y:auto">
+      ${setupHtml}
+      <div style="font-size:15px;font-weight:600;color:var(--muted);margin-bottom:16px">
+        What are you logging?
+      </div>
+      <div class="cat-grid">${catsHtml}</div>
+      ${countHtml}
+    </div>`;
+    
+  document.getElementById("adminBtn").addEventListener("click", ()=>setState({showAdmin:true}));
+  
+  if(!state.scriptUrl) {
+    document.getElementById("setupBanner")?.addEventListener("click", e => {
+      if(e.target.id==="scriptInput"||e.target.id==="saveUrlBtn") return;
+      state.showSetup = !state.showSetup;
+      render();
+    });
+    document.getElementById("saveUrlBtn")?.addEventListener("click", e => {
+      e.stopPropagation();
+      const url = document.getElementById("scriptInput").value;
+      lsSet("script_url", url);
+      setState({scriptUrl:url, showSetup:false});
+    });
+    document.getElementById("scriptInput")?.addEventListener("click", e=>e.stopPropagation());
+  }
+  
+  document.querySelectorAll(".cat-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const cat = CATEGORIES.find(c=>c.id===btn.dataset.cat);
+      state.category = cat;
+      state.timestamp = new Date().toISOString();
+      state.photoDataUrl = null;
+      state.ocrData = null;
+      state.ocrError = null;
+      grabLocation();
+      setState({screen:"capture"});
+    });
+  });
+}
+
+// --- Capture ---
+function renderCapture(el) {
+  if(state.ocrLoading) {
+    el.innerHTML = `
+      <div class="header">
+        <button class="btn-back" id="backBtn">← Back</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">${state.category?.icon}</span>
+          <span style="font-size:15px;font-weight:700;color:${state.category?.color}">${state.category?.label}</span>
+        </div>
+      </div>
+      <div class="screen center">
+        <div class="spinner"></div>
+        <div style="font-size:18px;font-weight:700">Reading Receipt...</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:8px">Google Vision is extracting the data</div>
+      </div>`;
+    document.getElementById("backBtn").addEventListener("click", ()=>setState({screen:"category",ocrLoading:false}));
+    return;
+  }
+  
+  const locHtml = state.locationLoading
+    ? `<span style="font-size:12px;color:var(--muted)">📍 Getting location...</span>`
+    : state.location
+      ? `<span style="font-size:12px;color:var(--success)">📍 Location locked</span>`
+      : "";
+
+  el.innerHTML = `
+    <div class="header">
+      <button class="btn-back" id="backBtn">← Back</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px">${state.category?.icon}</span>
+        <span style="font-size:15px;font-weight:700;color:${state.category?.color}">${state.category?.label}</span>
+      </div>
+    </div>
+    <div class="screen center">
+      <div style="width:100px;height:100px;border-radius:28px;
+        background:${state.category?.color}20;display:flex;align-items:center;
+        justify-content:center;margin:0 auto 20px;
+        border:2px dashed ${state.category?.color}50">
+        <span style="font-size:48px">📸</span>
+      </div>
+      <div style="font-size:22px;font-weight:800">Snap the Receipt</div>
+      <div style="font-size:14px;color:var(--muted);margin-top:8px;line-height:1.5">
+        Photo the receipt or pump screen.<br>It'll be read automatically.
+      </div>
+      <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none">
+      <button id="photoBtn" class="btn-p" style="margin-top:40px">📷 Take Photo</button>
+      <button id="skipBtn" style="background:none;border:none;color:var(--muted);
+        font-size:14px;cursor:pointer;text-decoration:underline;padding:8px;margin-top:16px">
+        Skip photo — enter manually
+      </button>
+      <div style="margin-top:20px">${locHtml}</div>
+    </div>`;
+    
+  document.getElementById("backBtn").addEventListener("click", ()=>setState({screen:"category"}));
+  document.getElementById("photoBtn").addEventListener("click", ()=>document.getElementById("photoInput").click());
+  document.getElementById("photoInput").addEventListener("change", e => {
+    if(e.target.files?.[0]) handlePhoto(e.target.files[0]);
+  });
+  document.getElementById("skipBtn").addEventListener("click", ()=>{
+    setState({
+      ocrData:{vendor:"",total:0,gallons:null,price_per_gallon:null,date_on_receipt:null,notes:""},
+      screen:"review"
+    });
+  });
+}
+
+// --- Review ---
+function renderReview(el) {
+  const isGas = state.category?.id === "gas";
+  const d = state.ocrData || {};
+  
+  const fields = [
+    {key:"vendor",label:"Vendor / Station",val:d.vendor||""},
+    {key:"total",label:"Total",val:d.total||0,fmt:"currency"},
+    ...(isGas ? [
+      {key:"gallons",label:"Gallons",val:d.gallons??""},
+      {key:"price_per_gallon",label:"$/Gallon",val:d.price_per_gallon??"",fmt:"currency"},
+    ] : []),
+    {key:"odometer",label:"Odometer",val:d.odometer||""},
+    {key:"notes",label:"Notes",val:d.notes||""},
+  ];
+  
+  const errHtml = state.ocrError ? `
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);
+      border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:13px;color:var(--accent)">
+      ⚠️ ${esc(state.ocrError)}
+    </div>` : "";
+    
+  const imgHtml = state.photoDataUrl
+    ? `<img src="${state.photoDataUrl}" class="img-thumb" alt="Receipt">`
+    : "";
+    
+  const fieldsHtml = fields.map(f => {
+    const isEditing = state.editField === f.key;
+    const display = f.fmt==="currency" && f.val ? fmt$(f.val) : (f.val || "—");
+    const valColor = f.key==="total" ? "var(--accent)" : "var(--text)";
+    
+    return `
+      <div class="card">
+        <div class="field-row">
+          <label style="font-size:11px;font-weight:700;color:var(--muted);
+            text-transform:uppercase;letter-spacing:0.8px">${f.label}</label>
+          <button class="edit-btn" data-field="${f.key}">${isEditing?"Done":"Edit"}</button>
+        </div>
+        ${isEditing
+          ? `<input class="input field-edit" data-field="${f.key}" data-fmt="${f.fmt||""}"
+              type="${f.fmt==="currency"?"number":"text"}" 
+              ${f.fmt==="currency"?'step="0.01"':""}
+              value="${f.val}" autofocus
+              style="margin-top:8px;font-size:18px;font-weight:700;border-color:var(--accent)">`
+          : `<div class="field-val" style="color:${valColor}">${esc(String(display))}</div>`
+        }
+      </div>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div class="header">
+      <button class="btn-back" id="retakeBtn">← Retake</button>
+      <span style="font-size:15px;font-weight:700;color:var(--accent)">Confirm</span>
+    </div>
+    <div class="screen" style="padding:16px 20px;overflow-y:auto">
+      ${errHtml}
+      ${imgHtml}
+      <div class="pills">
+        <span class="pill" style="background:${state.category?.color}20;color:${state.category?.color}">
+          ${state.category?.icon} ${state.category?.label}
+        </span>
+        <span class="pill" style="background:var(--surfaceLight);color:var(--muted)">
+          🚛 ${esc(state.unitInfo?.shortId || state.unitId || "—")}
+        </span>
+        <span class="pill" style="background:var(--surfaceLight);color:var(--muted)">
+          👤 ${esc(state.registeredName)}
+        </span>
+      </div>
+      ${fieldsHtml}
+    </div>
+    <div class="footer-bar">
+      <button id="submitBtn" class="btn-p" ${state.submitting?"disabled":""}>
+        ${state.submitting ? "Submitting..." : "✓ Log This Receipt"}
+      </button>
+    </div>`;
+    
+  document.getElementById("retakeBtn").addEventListener("click", ()=>setState({screen:"capture"}));
+  document.getElementById("submitBtn").addEventListener("click", handleSubmit);
+  
+  document.querySelectorAll(".edit-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const f = btn.dataset.field;
+      setState({editField: state.editField===f ? null : f});
+    });
+  });
+  
+  document.querySelectorAll(".field-edit").forEach(inp => {
+    inp.addEventListener("change", e => {
+      const f = e.target.dataset.field;
+      const fmt = e.target.dataset.fmt;
+      const val = fmt==="currency" ? (parseFloat(e.target.value)||0) : e.target.value;
+      state.ocrData = {...state.ocrData, [f]:val};
+    });
+    inp.addEventListener("blur", () => {
+      state.editField = null;
+      render();
+    });
+  });
+}
+
+// --- Success ---
+function renderSuccess(el) {
+  const demoHtml = !state.scriptUrl ? `
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);
+      border-radius:12px;padding:12px 16px;margin-top:20px;font-size:12px;
+      color:var(--accent);text-align:center;line-height:1.5">
+      DEMO MODE — Connect your Apps Script URL from the category screen to go live
+    </div>` : "";
+
+  el.innerHTML = `
+    <div class="screen center">
+      <div class="success-ring">✓</div>
+      <div style="font-size:24px;font-weight:800;margin-bottom:8px">Logged!</div>
+      <div style="font-size:14px;color:var(--muted);line-height:1.6">
+        ${state.category?.icon} ${state.category?.label} · 
+        ${fmt$(state.ocrData?.total)} · 
+        ${esc(state.unitInfo?.shortId || state.unitId || "—")}
+      </div>
+      ${demoHtml}
+      <div style="width:100%;margin-top:32px">
+        <button id="anotherBtn" class="btn-p">Log Another</button>
+      </div>
+      <div style="width:100%;margin-top:12px">
+        <button id="backCatBtn" class="btn-s">Back to Categories</button>
+      </div>
+    </div>`;
+    
+  document.getElementById("anotherBtn").addEventListener("click", ()=>{
+    setState({category:null,photoDataUrl:null,ocrData:null,ocrError:null,editField:null,screen:"category"});
+  });
+  document.getElementById("backCatBtn").addEventListener("click", ()=>setState({screen:"category"}));
+}
+
+// --- Admin Panel ---
+function renderAdmin(el) {
+  const v = state.vehicles;
+  const f = state.adminForm;
+  
+  const addFormHtml = state.showAddUnit ? `
+    <div class="card" style="border:2px solid rgba(139,92,246,0.25);margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:16px;color:var(--purple)">Register New Unit</div>
+      <div style="margin-bottom:14px">
+        <label class="label">Equipment Type</label>
+        <div class="eq-grid">
+          ${EQ_TYPES.map(t=>`
+            <button class="eq-btn ${f.type===t.id?"active":""}" data-type="${t.id}"
+              style="${f.type===t.id?`background:rgba(139,92,246,0.15);border-color:var(--purple);font-weight:700`:""}">
+              <span>${t.icon}</span><span>${t.label}</span>
+              <span style="margin-left:auto;color:var(--muted);font-size:11px;font-weight:700">${t.prefix}#</span>
+            </button>`).join("")}
+        </div>
+      </div>
+      <div class="yr-grid" style="margin-bottom:14px">
+        <div><label class="label">Year</label><input id="aYear" class="input" placeholder="2022" value="${esc(f.year)}"></div>
+        <div><label class="label">Make</label><input id="aMake" class="input" placeholder="Ford" value="${esc(f.make)}"></div>
+        <div><label class="label">Model</label><input id="aModel" class="input" placeholder="F-250" value="${esc(f.model)}"></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label class="label">VIN or Serial Number *</label>
+        <input id="aVin" class="input mono" style="letter-spacing:1px" placeholder="1FTBF2B64HEE12345" value="${esc(f.vin)}">
+      </div>
+      <div style="margin-bottom:16px">
+        <label class="label">Nickname (optional)</label>
+        <input id="aDesc" class="input" placeholder="Dakota's main truck" value="${esc(f.desc)}">
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:16px;
+        display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;color:var(--muted);font-weight:600">AUTO-ID:</span>
+        <span style="font-size:22px;font-weight:900;color:var(--accent);font-family:monospace">
+          ${genShortId(f.type, v)}
+        </span>
+      </div>
+      <button id="regUnitBtn" class="btn-p" style="background:linear-gradient(135deg,var(--purple),#6D28D9);
+        box-shadow:0 4px 20px rgba(139,92,246,0.25);color:#fff" ${f.vin.trim()?"":"disabled"}>
+        Register Unit
+      </button>
+    </div>` : "";
+    
+  const listHtml = v.length === 0 && !state.showAddUnit
+    ? `<div style="text-align:center;padding:48px 24px">
+        <div style="font-size:48px;margin-bottom:16px;opacity:0.5">🚛</div>
+        <div style="font-size:16px;font-weight:600;color:var(--muted)">No units registered yet</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:8px">Tap "+ Add Unit" to register trucks, drills, and equipment</div>
+       </div>`
+    : v.map(veh => {
+        const ti = EQ_TYPES.find(t=>t.id===veh.type) || EQ_TYPES[0];
+        const isDel = state.delId === veh.id;
+        return `
+          <div class="card">
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div class="badge">
+                <span class="badge-id">${esc(veh.shortId)}</span>
+                <span style="font-size:10px;color:var(--muted)">${ti.icon}</span>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:15px;font-weight:700;margin-bottom:4px">${esc(veh.description || ti.label)}</div>
+                <div class="mono" style="font-size:12px;color:var(--muted);word-break:break-all">${esc(veh.vin)}</div>
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+                  <span class="pill" style="background:rgba(139,92,246,0.12);color:var(--purple)">${ti.label}</span>
+                  <span class="pill mono" style="background:var(--surfaceLight);color:var(--muted);font-size:10px">?unit=${esc(veh.shortId)}</span>
+                </div>
+              </div>
+              <button class="del-toggle" data-id="${veh.id}" style="background:none;border:none;
+                color:${isDel?"var(--error)":"var(--muted)"};font-size:18px;cursor:pointer;padding:4px;opacity:0.6">×</button>
+            </div>
+            ${isDel ? `
+              <div class="del-confirm">
+                <span style="font-size:13px;color:var(--error)">Remove ${esc(veh.shortId)}?</span>
+                <div style="display:flex;gap:8px">
+                  <button class="del-keep" data-id="${veh.id}" style="background:var(--surfaceLight);color:var(--text)">Keep</button>
+                  <button class="del-yes" data-id="${veh.id}" style="background:var(--error);color:#fff;font-weight:700">Delete</button>
+                </div>
+              </div>` : ""}
+          </div>`;
+      }).join("");
+      
+  const qrHtml = v.length > 0 ? `
+    <div class="card" style="background:rgba(59,130,246,0.04);border-color:rgba(59,130,246,0.15);margin-top:8px">
+      <div style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:10px">
+        QR Codes → Generated in your Google Sheet
+      </div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">
+        The "Fleet & QR Codes" tab auto-generates print-ready 1.5" QR codes. Print at 100% scale.
+      </div>
+      ${v.map(veh=>`
+        <div class="fleet-url">
+          <span style="font-weight:900;color:var(--accent);min-width:36px">${esc(veh.shortId)}</span>
+          <span style="opacity:0.6">?unit=${esc(veh.shortId)}</span>
+        </div>`).join("")}
+    </div>` : "";
+
+  el.innerHTML = `
+    <div class="header">
+      <button class="btn-back" id="adminBack">← Back</button>
+      <span style="font-size:15px;font-weight:700;color:var(--purple)">Fleet Registry</span>
+    </div>
+    <div class="screen" style="padding:16px 20px;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:13px;color:var(--muted)">${v.length} unit${v.length!==1?"s":""} registered</span>
+        <button id="addUnitToggle" style="background:${state.showAddUnit?"var(--surfaceLight)":"linear-gradient(135deg,var(--purple),#6D28D9)"};
+          color:${state.showAddUnit?"var(--muted)":"#fff"};border:none;border-radius:10px;
+          padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer">
+          ${state.showAddUnit ? "Cancel" : "+ Add Unit"}
+        </button>
+      </div>
+      ${addFormHtml}
+      ${listHtml}
+      ${qrHtml}
+    </div>`;
+    
+  // --- Event listeners ---
+  document.getElementById("adminBack").addEventListener("click", ()=>setState({showAdmin:false}));
+  document.getElementById("addUnitToggle").addEventListener("click", ()=>{
+    setState({showAddUnit:!state.showAddUnit});
+  });
+  
+  // Equipment type buttons
+  document.querySelectorAll(".eq-btn").forEach(btn => {
+    btn.addEventListener("click", ()=>{
+      state.adminForm.type = btn.dataset.type;
+      render();
+    });
+  });
+  
+  // Form inputs
+  ["aYear","aMake","aModel","aVin","aDesc"].forEach(id => {
+    const inp = document.getElementById(id);
+    if(inp) inp.addEventListener("input", e => {
+      const map = {aYear:"year",aMake:"make",aModel:"model",aVin:"vin",aDesc:"desc"};
+      state.adminForm[map[id]] = e.target.value;
+      if(id==="aVin") {
+        const btn = document.getElementById("regUnitBtn");
+        if(btn) btn.disabled = !e.target.value.trim();
+      }
+    });
+  });
+  
+  // Register unit
+  document.getElementById("regUnitBtn")?.addEventListener("click", ()=>{
+    const f = state.adminForm;
+    if(!f.vin.trim()) return;
+    const shortId = genShortId(f.type, state.vehicles);
+    const vehicle = {
+      id:Date.now().toString(), shortId, type:f.type,
+      vin:f.vin.trim().toUpperCase(),
+      description: f.desc.trim() || `${f.year} ${f.make} ${f.model}`.trim(),
+      year:f.year.trim(), make:f.make.trim(), model:f.model.trim(),
+      createdAt:new Date().toISOString(), active:true,
+    };
+    const updated = [...state.vehicles, vehicle];
+    lsSetJSON("vehicles", updated);
+    setState({
+      vehicles:updated,
+      adminForm:{type:"truck",vin:"",year:"",make:"",model:"",desc:""},
+      showAddUnit:false,
+    });
+  });
+  
+  // Delete toggles
+  document.querySelectorAll(".del-toggle").forEach(btn => {
+    btn.addEventListener("click", ()=>{
+      setState({delId: state.delId===btn.dataset.id ? null : btn.dataset.id});
+    });
+  });
+  document.querySelectorAll(".del-keep").forEach(btn => {
+    btn.addEventListener("click", ()=>setState({delId:null}));
+  });
+  document.querySelectorAll(".del-yes").forEach(btn => {
+    btn.addEventListener("click", ()=>{
+      const updated = state.vehicles.filter(v=>v.id!==btn.dataset.id);
+      lsSetJSON("vehicles", updated);
+      setState({vehicles:updated, delId:null});
+    });
+  });
+}
+
+// --- Boot ---
+init();
+</script>
+</body>
+</html>
